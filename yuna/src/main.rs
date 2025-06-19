@@ -36,7 +36,7 @@ fn main() -> color_eyre::Result<()> {
     });
 
     // Main Thread
-    let result = App::new().run(terminal, rx);
+    let result = App::new(tx.clone()).run(terminal, rx);
     ratatui::restore();
     result
 }
@@ -44,18 +44,23 @@ fn main() -> color_eyre::Result<()> {
 pub enum AppEvent {
     Tick,
     Input(Event),
+    Message(String),
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct App {
     running: bool,
-    counter: i32,
-    letter: String,
+    display: String,
+    tx: mpsc::Sender<AppEvent>,
 }
 
 impl App {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(tx: mpsc::Sender<AppEvent>) -> Self {
+        App {
+            running: true,
+            display: String::new(),
+            tx,
+        }
     }
 
     pub fn run(
@@ -84,7 +89,7 @@ impl App {
             .lines(vec![
                 "Created For Yuna!".red().into(),
                 "~~~~~~~~~~~~~~~~~".into(),
-                self.letter.clone().green().into(),
+                self.display.clone().green().into(),
             ])
             .centered()
             .build();
@@ -94,12 +99,13 @@ impl App {
 
     fn handle_events(&mut self, rx: &mpsc::Receiver<AppEvent>) -> Result<()> {
         match rx.try_recv() {
-            Ok(msg) => match msg {
-                AppEvent::Tick => {
-                    self.counter += 1;
+            Ok(val) => match val {
+                AppEvent::Tick => Ok(()),
+                AppEvent::Input(ev) => self.handle_crossterm_events(ev),
+                AppEvent::Message(msg) => {
+                    self.display = msg;
                     Ok(())
                 }
-                AppEvent::Input(ev) => self.handle_crossterm_events(ev),
             },
             Err(_) => Ok(()),
         }
@@ -125,10 +131,32 @@ impl App {
         match (key.modifiers, key.code) {
             (_, KeyCode::Esc)
             | (KeyModifiers::CONTROL, KeyCode::Char('c') | KeyCode::Char('C')) => self.quit(),
-            // Add other key handlers here.
-            (_, KeyCode::Char(c)) => self.letter = String::from(c),
+            (_, KeyCode::Tab) => self.flush("Oops!!"),
+            (_, KeyCode::Enter) => self.slide_in("Hello, Yuna!!"),
+            (_, KeyCode::Char(' ')) => self.flush("Bye, Yuna!!"),
+            (_, KeyCode::Char(c)) => self.flush(&String::from(c).to_uppercase()),
             _ => {}
         }
+    }
+
+    fn flush(&mut self, message: &str) {
+        self.display = message.to_string();
+    }
+
+    fn slide_in(&self, message: &str) {
+        let mut message: String = message.chars().rev().collect();
+        let timer_sender = self.tx.clone();
+        thread::spawn(move || {
+            let tick_rate = Duration::from_millis(100);
+            let mut display = String::new();
+            while let Some(letter) = message.pop() {
+                thread::sleep(tick_rate);
+                display.push(letter);
+                timer_sender
+                    .send(AppEvent::Message(display.to_string()))
+                    .unwrap();
+            }
+        });
     }
 
     /// Set running to false to quit the application.
