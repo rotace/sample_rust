@@ -2,7 +2,9 @@ use binrw::{BinRead, BinWrite};
 use sea_orm::entity::prelude::*;
 
 /// 通信データ兼テーブルデータ
-#[derive(BinRead, BinWrite, Clone, Debug, PartialEq, DeriveEntityModel)]
+/// 
+/// この構造体は、UdP通信で送受信するデータの形式の定義とデータベースのテーブルの定義を兼ねた構造体です。
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, BinRead, BinWrite)]
 #[sea_orm(table_name = "units")]
 #[brw(little)]
 pub struct Model {

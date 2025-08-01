@@ -1,34 +1,71 @@
 use binrw::BinWrite;
+use clap::{ArgAction, Parser, ValueEnum};
 use std::io::{self, Cursor, Write};
 use std::net::UdpSocket;
-use udp2sqlite_sync::entity::unit;
+use udp2sqlite_sync::entity::{target, unit};
 
-fn main() -> io::Result<()> {
-    // SQL送信
-    let sql_socket = UdpSocket::bind("0.0.0.0:0")?; // 任意ポート
-    let sql_server = "127.0.0.1:3000";
+/// 利用可能なエンティティ
+#[derive(ValueEnum, Clone, Debug)]
+enum Entity {
+    Unit,
+    Target,
+}
 
-    print!("送信するSQL文を入力してください: ");
-    io::stdout().flush()?;
-    let mut sql = String::new();
-    io::stdin().read_line(&mut sql)?;
-    sql_socket.send_to(sql.trim().as_bytes(), sql_server)?;
-    println!("SQL送信: {}", sql.trim());
+/// UDP client for SQL or binary send
+#[derive(Parser, Debug)]
+#[command(name = "client")]
+#[command(about = "UDP client for SQL or binary send")]
+struct Cli {
+    /// Send SQL
+    #[arg(short, long, action = ArgAction::SetTrue)]
+    sql: bool,
 
-    // バイナリ送信
-    let bin_socket = UdpSocket::bind("0.0.0.0:0")?;
-    let bin_server = "127.0.0.1:4000";
+    /// Send binary
+    #[arg(short, long, value_enum)]
+    entity: Entity,
+}
 
-    // 例としてMyData構造体を作成
-    let unit = unit::Dto {
-        id: 1,
-        value: 123.45,
-    };
-    let mut buf = Cursor::new(Vec::new());
-    unit.write(&mut buf).unwrap();
-    let bytes = buf.get_ref();
-    bin_socket.send_to(&bytes[..], bin_server)?;
-    println!("バイナリ送信: {:?}", unit);
+fn main() -> anyhow::Result<()> {
+    let cli = Cli::parse();
 
+    if cli.sql {
+        // SQL送信
+        let socket = UdpSocket::bind("0.0.0.0:0")?;
+        let server = "127.0.0.1:3000";
+
+        loop {
+            print!("SQL入力: ");
+            io::stdout().flush()?;
+            let mut sql = String::new();
+            io::stdin().read_line(&mut sql)?;
+            socket.send_to(sql.trim().as_bytes(), server)?;
+            println!("SQL送信: {}", sql.trim());
+        }
+    } else {
+        // バイナリ送信
+        let socket = UdpSocket::bind("0.0.0.0:0")?;
+        let server = "127.0.0.1:4000";
+        let mut buf = Cursor::new(Vec::new());
+
+        match cli.entity {
+            Entity::Unit => {
+                let unit = unit::Dto {
+                    id: 1,
+                    value: 123.45,
+                };
+                unit.write(&mut buf).unwrap();
+                println!("バイナリ送信: {:?}", unit);
+            }
+            Entity::Target => {
+                let target = target::Dto {
+                    id: 1,
+                    value: 123.45,
+                };
+                target.write(&mut buf).unwrap();
+                println!("バイナリ送信: {:?}", target);
+            }
+        }
+        socket.send_to(buf.get_ref(), server)?;
+    }
     Ok(())
 }

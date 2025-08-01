@@ -1,14 +1,36 @@
 use binrw::BinWrite;
+use clap::{ArgAction, Parser, ValueEnum};
 use std::io::{self, Cursor, Write};
 use std::net::UdpSocket;
-use udp2sqlite_async::entity::unit;
+use udp2sqlite_async::entity::{target, unit};
+
+/// 利用可能なエンティティ
+#[derive(ValueEnum, Clone, Debug)]
+enum Entity {
+    Unit,
+    Target,
+}
+
+/// UDP client for SQL or binary send
+#[derive(Parser, Debug)]
+#[command(name = "client")]
+#[command(about = "UDP client for SQL or binary send")]
+struct Cli {
+    /// Send SQL
+    #[arg(short, long, action = ArgAction::SetTrue)]
+    sql: bool,
+
+    /// Send binary
+    #[arg(short, long, value_enum)]
+    entity: Entity,
+}
 
 fn main() -> anyhow::Result<()> {
-    let is_sql = true;
+    let cli = Cli::parse();
 
-    if is_sql {
+    if cli.sql {
         // SQL送信
-        let socket = UdpSocket::bind("0.0.0.0:0")?; // 任意ポート
+        let socket = UdpSocket::bind("0.0.0.0:0")?;
         let server = "127.0.0.1:3000";
 
         loop {
@@ -23,17 +45,27 @@ fn main() -> anyhow::Result<()> {
         // バイナリ送信
         let socket = UdpSocket::bind("0.0.0.0:0")?;
         let server = "127.0.0.1:4000";
-
-        // 例としてMyData構造体を作成
-        let unit = unit::Model {
-            id: 1,
-            value: 123.45,
-        };
         let mut buf = Cursor::new(Vec::new());
-        unit.write(&mut buf).unwrap();
-        let bytes = buf.get_ref();
-        socket.send_to(&bytes[..], server)?;
-        println!("バイナリ送信: {:?}", unit);
+
+        match cli.entity {
+            Entity::Unit => {
+                let unit = unit::Model {
+                    id: 1,
+                    value: 123.45,
+                };
+                unit.write(&mut buf).unwrap();
+                println!("バイナリ送信: {:?}", unit);
+            }
+            Entity::Target => {
+                let target = target::Dto {
+                    id: 1,
+                    value: 123.45,
+                };
+                target.write(&mut buf).unwrap();
+                println!("バイナリ送信: {:?}", target);
+            }
+        }
+        socket.send_to(buf.get_ref(), server)?;
     }
     Ok(())
 }

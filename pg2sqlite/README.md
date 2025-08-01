@@ -10,6 +10,3 @@ PostgreSQLのデータベースをSQLite3ファイルにエクスポートする
 * デーベースURIにアクセスする際は、postgresクレートを使用する。
 * DataFrameにロードする際は、polarsクレートを使用する。
 * sqlite3に書き込む際は、rusqliteクレートを使用する。
-
-## TODO
-* postgresqlのインストールとサンプルデータ作成
