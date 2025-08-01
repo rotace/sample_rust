@@ -1,8 +1,8 @@
 use binrw::BinRead;
+use rusqlite::Connection;
 use std::io::Cursor;
 use std::net::UdpSocket;
-use udp2sqlite_sync::{MyData};
-use rusqlite::Connection;
+use udp2sqlite_sync::entity::unit;
 
 fn main() -> std::io::Result<()> {
     // SQL用UDPソケット
@@ -12,7 +12,6 @@ fn main() -> std::io::Result<()> {
     // バイナリ用UDPソケット
     let bin_socket = UdpSocket::bind("0.0.0.0:4000")?;
     bin_socket.set_nonblocking(true)?;
-
 
     loop {
         // SQL文受信
@@ -27,8 +26,8 @@ fn main() -> std::io::Result<()> {
         let mut bin_buf = [0u8; 1024];
         if let Ok((size, _src)) = bin_socket.recv_from(&mut bin_buf) {
             let mut cursor = Cursor::new(&bin_buf[..size]);
-            if let Ok(data) = MyData::read_le(&mut cursor) {
-                println!("バイナリ受信: {:?}", data);
+            if let Ok(unit) = unit::Dto::read_le(&mut cursor) {
+                println!("バイナリ受信: {:?}", unit);
                 // ここにデータベースに保存する処理を追加
             } else {
                 eprintln!("バイナリデータのパース失敗");
@@ -39,4 +38,3 @@ fn main() -> std::io::Result<()> {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
 }
-

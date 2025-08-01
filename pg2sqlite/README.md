@@ -1,7 +1,7 @@
 # PG2SQLITE
 PostgreSQLのデータベースをSQLite3ファイルにエクスポートするツール
 
-## Design
+## 設計指針
 * CUI処理のため、同期Rustとして設計する。
 * バイナリファイル直下のsetting.jsonを読み込む。
 * setting.jsonにて、データベースURIを指定できる。
@@ -11,3 +11,5 @@ PostgreSQLのデータベースをSQLite3ファイルにエクスポートする
 * DataFrameにロードする際は、polarsクレートを使用する。
 * sqlite3に書き込む際は、rusqliteクレートを使用する。
 
+## TODO
+* postgresqlのインストールとサンプルデータ作成

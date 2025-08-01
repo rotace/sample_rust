@@ -1,8 +1,7 @@
-use std::net::UdpSocket;
-use std::io::{self, Cursor, Write};
 use binrw::BinWrite;
-use udp2sqlite_sync::MyData;
-
+use std::io::{self, Cursor, Write};
+use std::net::UdpSocket;
+use udp2sqlite_sync::entity::unit;
 
 fn main() -> io::Result<()> {
     // SQL送信
@@ -21,12 +20,15 @@ fn main() -> io::Result<()> {
     let bin_server = "127.0.0.1:4000";
 
     // 例としてMyData構造体を作成
-    let data = MyData { id: 1, value: 123.45 };
+    let unit = unit::Dto {
+        id: 1,
+        value: 123.45,
+    };
     let mut buf = Cursor::new(Vec::new());
-    data.write(&mut buf).unwrap();
+    unit.write(&mut buf).unwrap();
     let bytes = buf.get_ref();
     bin_socket.send_to(&bytes[..], bin_server)?;
-    println!("バイナリ送信: {:?}", data);
+    println!("バイナリ送信: {:?}", unit);
 
     Ok(())
 }

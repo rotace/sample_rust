@@ -3,17 +3,7 @@ use sea_orm::{ConnectionTrait, Database, DatabaseConnection, EntityTrait};
 use std::io::Cursor;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
-use udp2sqlite_async::item;
-
-async fn handle_sql(db: Arc<DatabaseConnection>, sql: &str) {
-    // SQL文を実行
-    let _ = db
-        .execute(sea_orm::Statement::from_string(
-            sea_orm::DatabaseBackend::Sqlite,
-            sql.to_string(),
-        ))
-        .await;
-}
+use udp2sqlite_async::entity::unit;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -27,7 +17,13 @@ async fn main() -> anyhow::Result<()> {
         loop {
             let (len, _) = socket.recv_from(&mut buf).await.unwrap();
             let sql = String::from_utf8_lossy(&buf[..len]);
-            handle_sql(sql_db.clone(), &sql).await;
+
+            let _ = sql_db
+                .execute(sea_orm::Statement::from_string(
+                    sea_orm::DatabaseBackend::Sqlite,
+                    sql.to_string(),
+                ))
+                .await;
         }
     });
 
@@ -39,9 +35,9 @@ async fn main() -> anyhow::Result<()> {
         loop {
             let (len, _) = socket.recv_from(&mut buf).await.unwrap();
             let mut cursor = Cursor::new(&buf[..len]);
-            let model : item::ActiveModel = item::Model::read_le(&mut cursor)?.into();
+            let model: unit::ActiveModel = unit::Model::read_le(&mut cursor)?.into();
             // sea-ormでDB保存処理（例: INSERT文）
-            item::Entity::insert_many([model])
+            unit::Entity::insert_many([model])
                 .exec(bin_db.as_ref())
                 .await
                 .unwrap();

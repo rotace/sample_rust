@@ -6,5 +6,6 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.98"
 binrw = "0.15.0"
+clap = { version = "4.5", features = ["derive"] }
 sea-orm = "1.1.14"
 tokio = { version = "1.47", features = ["net", "rt-multi-thread", "macros"] }
