@@ -1,8 +1,8 @@
 use binrw::{BinRead, BinWrite};
 use sea_orm::entity::prelude::*;
 
-/// 通信データ
-/// 
+/// 通信データ定義
+///
 /// `Dto`は、UDP通信で送受信するデータの形式を定義する構造体で、`Model`との相互変換が可能です。
 #[derive(Debug, BinRead, BinWrite)]
 #[brw(little)]
@@ -11,8 +11,8 @@ pub struct Dto {
     pub value: f64,
 }
 
-/// テーブルデータ
-/// 
+/// テーブルデータ定義
+///
 /// `Model`は、データベースのテーブルの形式を定義する構造体です。`Dto`との相互変換が可能です。
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "targets")]

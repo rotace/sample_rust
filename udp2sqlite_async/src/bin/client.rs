@@ -2,6 +2,7 @@ use binrw::BinWrite;
 use clap::{ArgAction, Parser, ValueEnum};
 use std::io::{self, Cursor, Write};
 use std::net::UdpSocket;
+use udp2sqlite_async::MsgId;
 use udp2sqlite_async::entity::{target, unit};
 
 /// 利用可能なエンティティ
@@ -21,7 +22,7 @@ struct Cli {
     sql: bool,
 
     /// Send binary
-    #[arg(short, long, value_enum)]
+    #[arg(short, long, value_enum, default_value_t = Entity::Unit)]
     entity: Entity,
 }
 
@@ -53,6 +54,7 @@ fn main() -> anyhow::Result<()> {
                     id: 1,
                     value: 123.45,
                 };
+                MsgId::Unit.write(&mut buf).unwrap();
                 unit.write(&mut buf).unwrap();
                 println!("バイナリ送信: {:?}", unit);
             }
@@ -61,6 +63,7 @@ fn main() -> anyhow::Result<()> {
                     id: 1,
                     value: 123.45,
                 };
+                MsgId::Target.write(&mut buf).unwrap();
                 target.write(&mut buf).unwrap();
                 println!("バイナリ送信: {:?}", target);
             }

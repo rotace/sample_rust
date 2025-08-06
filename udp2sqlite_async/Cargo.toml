@@ -7,5 +7,6 @@ edition = "2024"
 anyhow = "1.0.98"
 binrw = "0.15.0"
 clap = { version = "4.5", features = ["derive"] }
-sea-orm = "1.1.14"
+sea-orm = { version = "1.1", features = ["sqlx-sqlite", "runtime-tokio-rustls"] }
+sea-orm-migration = "1.1.14"
 tokio = { version = "1.47", features = ["net", "rt-multi-thread", "macros"] }
