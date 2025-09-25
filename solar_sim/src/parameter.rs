@@ -14,7 +14,7 @@ pub fn load_parameter_data(conn: &mut Connection) -> anyhow::Result<()> {
     )?;
 
     let design_factors = vec![0.55];
-    let solar_outputs = vec![0., 2., 4., 6., 8.];
+    let solar_outputs = vec![0., 2., 4., 6., 8., 10., 12., 14., 16.];
     for &df in &design_factors {
         for &so in &solar_outputs {
             conn.execute(
@@ -32,7 +32,7 @@ pub fn load_parameter_data(conn: &mut Connection) -> anyhow::Result<()> {
         [],
     )?;
 
-    let battery_capacities = vec![0., 2., 4., 6., 8.];
+    let battery_capacities = vec![0., 2., 4., 6., 8., 10., 12., 14., 16.];
     for &bc in &battery_capacities {
         conn.execute(
             "INSERT INTO '日別電力収支パラメータ' ('蓄電池容量[kWh]') VALUES (?1)",
