@@ -1,39 +1,42 @@
 use chrono::NaiveDate;
 use rusqlite::{Connection, params};
 
-/// 日照量データを読み込む
+/// 日射量データを読み込む
 pub fn load_solar_data(conn: &mut Connection, file: &str) -> anyhow::Result<()> {
     println!("Loading solar data from file: {}", file);
 
     // データベースにテーブルを作成
     conn.execute(
-        "CREATE TABLE IF NOT EXISTS solar (
+        "CREATE TABLE IF NOT EXISTS '時別傾斜面日射量' (
             timestamp TIMESTAMP PRIMARY KEY,
-            solar_kwh REAL
+            match_key TEXT GENERATED ALWAYS AS (STRFTIME('%m-%d %H:00', timestamp)) STORED,
+            '傾斜面日射量[kWh/m2]' REAL
         )",
         [],
     )?;
 
-    // データベースにビューを作成
+    // データベースに月別平均日射量ビューを作成
     conn.execute(
         "CREATE VIEW IF NOT EXISTS '月別平均日射量' AS
         WITH daily_totals AS (
             SELECT
                 date(timestamp) AS day,
-                SUM(solar_kwh) AS daily_totals_kwh
-            FROM solar
+                SUM('傾斜面日射量[kWh/m2]') AS daily_totals_kw
+            FROM '時別傾斜面日射量'
             GROUP BY day
         ),
         monthly_averages AS (
             SELECT
                 strftime('%m', day) AS month,
-                AVG(daily_totals_kwh) AS monthly_avg_kwh
+                strftime('%Y-%m', day) AS year_month,
+                AVG(daily_totals_kw) AS monthly_avg_kw
             FROM daily_totals
             GROUP BY month
         )
         SELECT
             month AS '月',
-            monthly_avg_kwh AS '日射量[kWh/m2/日]'
+            year_month AS '年月',
+            monthly_avg_kw AS '日射量[kW/m2/日]'
         FROM monthly_averages
         ORDER BY month",
         [],
@@ -63,7 +66,8 @@ pub fn load_solar_data(conn: &mut Connection, file: &str) -> anyhow::Result<()> 
             record[3].parse().unwrap(),
         )
         .unwrap();
-        let sql = "INSERT INTO solar (timestamp, solar_kwh) VALUES (?1, ?2)";
+        let sql =
+            "INSERT INTO '時別傾斜面日射量' (timestamp, '傾斜面日射量[kWh/m2]') VALUES (?1, ?2)";
         tx.execute(
             sql,
             params![

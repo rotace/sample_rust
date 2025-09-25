@@ -89,25 +89,26 @@ pub fn load_power_data(conn: &mut Connection, file: &str) -> anyhow::Result<()> 
 
     // データベースにテーブル作成
     conn.execute(
-        "CREATE TABLE IF NOT EXISTS power (
+        "CREATE TABLE IF NOT EXISTS '時別電力使用量' (
             timestamp TIMESTAMP PRIMARY KEY,
-            power_kwh REAL
+            match_key TEXT GENERATED ALWAYS AS (STRFTIME('%m-%d %H:00', timestamp)) STORED,
+            '電力使用量[kWh]' REAL
         )",
         [],
     )?;
 
-    // データベースにビューを作成
+    // データベースに月別電力使用量ビューを作成
     conn.execute(
         "CREATE VIEW IF NOT EXISTS '月別電力使用量' AS
         WITH monthly_totals AS (
             SELECT
                 strftime('%Y-%m', timestamp) AS month,
-                SUM(power_kwh) AS total_power
-            FROM power
+                SUM('電力使用量[kWh]') AS total_power
+            FROM '時別電力使用量'
             GROUP BY month
         )
         SELECT 
-            month AS '月',
+            month AS '年月',
             total_power AS '月間使用量[kWh]'
         FROM monthly_totals
         ORDER BY month",
@@ -135,7 +136,8 @@ pub fn load_power_data(conn: &mut Connection, file: &str) -> anyhow::Result<()> 
             }
             Ok(record) => {
                 let date = parse_japanese_date(&record.timestamp).unwrap();
-                let sql = "INSERT INTO power (timestamp, power_kwh) VALUES (?1, ?2)";
+                let sql =
+                    "INSERT INTO '時別電力使用量' (timestamp, '電力使用量[kWh]') VALUES (?1, ?2)";
                 tx.execute(
                     sql,
                     params![

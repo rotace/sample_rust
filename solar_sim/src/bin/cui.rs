@@ -27,6 +27,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     let mut conn = Connection::open("data.sqlite")?;
+    solar_sim::load_parameter_data(&mut conn)?;
     solar_sim::load_power_data(&mut conn, &args.power_input)?;
     solar_sim::load_solar_data(&mut conn, &args.solar_input)?;
     solar_sim::load_weather_data(&mut conn, &args.weather_input)?;

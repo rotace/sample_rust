@@ -9,11 +9,11 @@ struct WeatherRecord {
     #[serde(rename = "気温(℃)")]
     temperature: f64,
     #[serde(rename = "相対湿度(％)")]
-    humidity: f64,
+    humidity: Option<f64>,
     #[serde(rename = "蒸気圧(hPa)")]
-    vapor_pressure: f64,
+    vapor_pressure: Option<f64>,
     #[serde(rename = "露点温度(℃)")]
-    dew_point: f64,
+    dew_point: Option<f64>,
 }
 
 /// 気温データを読み込む
@@ -25,14 +25,14 @@ pub fn load_weather_data(conn: &mut Connection, file: &str) -> anyhow::Result<()
         "CREATE TABLE IF NOT EXISTS weather (
             timestamp TIMESTAMP PRIMARY KEY,
             temperature REAL NOT NULL,
-            humidity REAL NOT NULL,
-            vapor_pressure REAL NOT NULL,
-            dew_point REAL NOT NULL
+            humidity REAL,
+            vapor_pressure REAL,
+            dew_point REAL
         )",
         [],
     )?;
 
-    // データベースにビューを作成
+    // データベースに月別平均気象量ビューを作成
     conn.execute(
         "CREATE VIEW IF NOT EXISTS '月別平均気象量' AS
         WITH monthly_avg AS (
@@ -46,7 +46,7 @@ pub fn load_weather_data(conn: &mut Connection, file: &str) -> anyhow::Result<()
             GROUP BY month
         )
         SELECT
-            month AS '月',
+            month AS '年月',
             avg_temperature AS '平均気温[℃]',
             avg_humidity AS '平均相対湿度[％]',
             avg_vapor_pressure AS '平均蒸気圧[hPa]',
