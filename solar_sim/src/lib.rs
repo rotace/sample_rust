@@ -142,16 +142,32 @@ pub fn calc_simulation(conn: &mut Connection) -> anyhow::Result<()> {
         ),
         tmp1 AS (
             SELECT
-                *,
-                monthly.'電力消費量[kWh]' * 32 + 1400 AS '導入前電力料金(円)',
-                monthly.'電力購入量[kWh]' * 32 + 1400 AS '導入後電力料金(円)'
+                monthly.*,
+                monthly.'電力消費量[kWh]' * 32 + 1400 AS '導入前電力料金[円]',
+                monthly.'電力購入量[kWh]' * 32 + 1400 AS '導入後電力料金[円]',
+                costs.'初期費用[円]'
             FROM
                 monthly
+            LEFT JOIN
+                '太陽光発電初期費用' as costs
+            ON
+                monthly.'太陽電池出力[m2]' = costs.'太陽電池出力[m2]' AND
+                monthly.'蓄電池容量[kWh]' = costs.'蓄電池容量[kWh]'
+        ),
+        tmp2 AS (
+            SELECT
+                *,
+                CASE
+                    WHEN tmp1.'導入前電力料金[円]' - tmp1.'導入後電力料金[円]' <= 0 THEN NULL
+                    ELSE tmp1.'初期費用[円]' / (tmp1.'導入前電力料金[円]' - tmp1.'導入後電力料金[円]') / 12
+                END AS '回収年数[年]'
+            FROM
+                tmp1
         )
         SELECT
             *
         FROM
-            tmp1
+            tmp2
         ORDER BY
             month,
             '設計係数',
@@ -163,6 +179,7 @@ pub fn calc_simulation(conn: &mut Connection) -> anyhow::Result<()> {
     // 年別電力収支を計算するためのビューを作成
     conn.execute(
         "CREATE VIEW IF NOT EXISTS '年別電力収支' AS
+        WITH yearly AS (
         SELECT
             date,
             strftime('%Y', date) AS year,
@@ -178,8 +195,9 @@ pub fn calc_simulation(conn: &mut Connection) -> anyhow::Result<()> {
             SUM(powers.'余剰蓄電量[kWh]') AS '余剰蓄電量[kWh]',
             AVG(powers.'蓄電池使用率[%]') AS '蓄電池使用率[%]',
             SUM(powers.'電力購入量[kWh]') / SUM(powers.'電力消費量[kWh]') * 100 AS '電力購入率[%]',
-            SUM(powers.'導入前電力料金(円)') AS '導入前電力料金(円)',
-            SUM(powers.'導入後電力料金(円)') AS '導入後電力料金(円)'
+            SUM(powers.'導入前電力料金[円]') AS '導入前電力料金[円]',
+            SUM(powers.'導入後電力料金[円]') AS '導入後電力料金[円]',
+            powers.'初期費用[円]'
         FROM
             '月別電力収支' as powers
         GROUP BY
@@ -187,6 +205,21 @@ pub fn calc_simulation(conn: &mut Connection) -> anyhow::Result<()> {
             powers.'設計係数',
             powers.'太陽電池出力[m2]',
             powers.'蓄電池容量[kWh]'
+        ),
+        tmp1 AS (
+            SELECT
+                *,
+                CASE
+                    WHEN yearly.'導入前電力料金[円]' - yearly.'導入後電力料金[円]' <= 0 THEN NULL
+                    ELSE yearly.'初期費用[円]' / (yearly.'導入前電力料金[円]' - yearly.'導入後電力料金[円]')
+                END AS '回収年数[年]'
+            FROM
+                yearly
+        )
+        SELECT
+            *
+        FROM
+            tmp1
         ORDER BY
             year,
             '設計係数',
