@@ -126,7 +126,7 @@ pub fn calc_simulation(conn: &mut Connection) -> anyhow::Result<()> {
             monthly_power.'不足電力[kWh]',
             monthly_power.'蓄電量[kWh]',
             monthly_power.'電力購入量[kWh]',
-            monthly_power.'電力購入量[kWh]' * 32 AS '月間電力料金(円)'
+            monthly_power.'電力購入量[kWh]' * 32 + 1400 AS '月間電力料金(円)'
         FROM
             monthly_power
         ORDER BY

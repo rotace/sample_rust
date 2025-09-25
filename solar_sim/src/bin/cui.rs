@@ -1,6 +1,8 @@
 use clap::Parser;
 use rusqlite::Connection;
 
+const DATABASE_FILE: &str = "data.sqlite";
+
 #[derive(clap::Parser, Debug)]
 #[command(name = "solar simulation cui")]
 #[command(about = "A command line interface for solar simulation", long_about = None)]
@@ -22,11 +24,11 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     // 古いデータベースファイルが存在する場合は削除
-    if std::path::Path::new("data.sqlite").exists() {
-        std::fs::remove_file("data.sqlite")?;
+    if std::path::Path::new(DATABASE_FILE).exists() {
+        std::fs::remove_file(DATABASE_FILE)?;
     }
 
-    let mut conn = Connection::open("data.sqlite")?;
+    let mut conn = Connection::open(DATABASE_FILE)?;
     solar_sim::load_parameter_data(&mut conn)?;
     solar_sim::load_power_data(&mut conn, &args.power_input)?;
     solar_sim::load_solar_data(&mut conn, &args.solar_input)?;

@@ -1,34 +1,8 @@
 use eframe::egui;
 use rfd::FileDialog;
-use rusqlite::{Connection, params};
-use serde::Deserialize;
-use std::fs::File;
+use rusqlite::Connection;
 
-#[derive(Debug, Deserialize)]
-struct SolarData {
-    #[serde(rename = "日時")]
-    timestamp: String,
-    #[serde(rename = "日射量")]
-    radiation: f64,
-}
-
-fn insert_solar_data(conn: &mut Connection, data: &[SolarData]) -> rusqlite::Result<()> {
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS solar (timestamp TEXT, radiation REAL)",
-        [],
-    )?;
-
-    let tx: rusqlite::Transaction<'_> = conn.transaction()?;
-    {
-        let mut stmt = tx.prepare("INSERT INTO solar (timestamp, radiation) VALUES (?1, ?2)")?;
-
-        for record in data {
-            stmt.execute(params![record.timestamp, record.radiation])?;
-        }
-    }
-
-    tx.commit()
-}
+const DATABASE_FILE: &str = "data.sqlite";
 
 struct MyApp {
     message: String,
@@ -37,7 +11,7 @@ struct MyApp {
 impl Default for MyApp {
     fn default() -> Self {
         Self {
-            message: "CSVを選択してください".to_string(),
+            message: "Please Push Button for Import CSV Files".to_string(),
         }
     }
 }
@@ -47,32 +21,74 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Solar System Simulator");
 
-            if ui.button("Select CSV").clicked() {
-                if let Some(path) = FileDialog::new().add_filter("CSV", &["csv"]).pick_file() {
-                    match File::open(&path) {
-                        Ok(file) => {
-                            let mut rdr = csv::Reader::from_reader(file);
-                            let mut records = Vec::new();
-
-                            for result in rdr.deserialize() {
-                                match result {
-                                    Ok(record) => records.push(record),
-                                    Err(e) => {
-                                        self.message = format!("Read CSV Error: {}", e);
-                                        return;
-                                    }
-                                }
-                            }
-
-                            match Connection::open("data.db") {
-                                Ok(mut conn) => match insert_solar_data(&mut conn, &records) {
-                                    Ok(_) => self.message = "Written SQLite".to_string(),
-                                    Err(e) => self.message = format!("Write DB Error: {}", e),
-                                },
-                                Err(e) => self.message = format!("Connect DB Error: {}", e),
-                            }
+            if ui.button("Select Solar CSV").clicked() {
+                if let Some(path) = FileDialog::new()
+                    .set_title("Select Solar Data")
+                    .add_filter("CSV", &["csv"])
+                    .pick_file()
+                {
+                    let mut conn = match Connection::open(DATABASE_FILE) {
+                        Ok(c) => c,
+                        Err(e) => {
+                            self.message = format!("Failed to open database: {}", e);
+                            return;
                         }
-                        Err(e) => self.message = format!("File Open Error: {}", e),
+                    };
+                    match solar_sim::load_solar_data(&mut conn, path.to_str().unwrap()) {
+                        Ok(_) => {
+                            self.message = "Solar CSV loaded successfully".to_string();
+                        }
+                        Err(e) => {
+                            self.message = format!("Failed to load Solar CSV: {}", e);
+                        }
+                    }
+                }
+            }
+
+            if ui.button("Select Power CSV").clicked() {
+                if let Some(path) = FileDialog::new()
+                    .set_title("Select Power Data")
+                    .add_filter("CSV", &["csv"])
+                    .pick_file()
+                {
+                    let mut conn = match Connection::open(DATABASE_FILE) {
+                        Ok(c) => c,
+                        Err(e) => {
+                            self.message = format!("Failed to open database: {}", e);
+                            return;
+                        }
+                    };
+                    match solar_sim::load_power_data(&mut conn, path.to_str().unwrap()) {
+                        Ok(_) => {
+                            self.message = "Power CSV loaded successfully".to_string();
+                        }
+                        Err(e) => {
+                            self.message = format!("Failed to load Power CSV: {}", e);
+                        }
+                    }
+                }
+            }
+
+            if ui.button("Selected Weather CSV").clicked() {
+                if let Some(path) = FileDialog::new()
+                    .set_title("Select Weather Data")
+                    .add_filter("CSV", &["csv"])
+                    .pick_file()
+                {
+                    let mut conn = match Connection::open(DATABASE_FILE) {
+                        Ok(c) => c,
+                        Err(e) => {
+                            self.message = format!("Failed to open database: {}", e);
+                            return;
+                        }
+                    };
+                    match solar_sim::load_weather_data(&mut conn, path.to_str().unwrap()) {
+                        Ok(_) => {
+                            self.message = "Weather CSV loaded successfully".to_string();
+                        }
+                        Err(e) => {
+                            self.message = format!("Failed to load Weather CSV: {}", e);
+                        }
                     }
                 }
             }
@@ -82,8 +98,25 @@ impl eframe::App for MyApp {
     }
 }
 
+fn init() -> anyhow::Result<()> {
+    // 古いデータベースファイルが存在する場合は削除
+    if std::path::Path::new(DATABASE_FILE).exists() {
+        std::fs::remove_file(DATABASE_FILE)?;
+    }
+
+    // データベースの初期化
+    let mut conn = Connection::open(DATABASE_FILE)?;
+    // パラメータデータの初期化
+    solar_sim::load_parameter_data(&mut conn)?;
+    // シミュレーションビューの初期化
+    solar_sim::calc_simulation(&mut conn)?;
+
+    Ok(())
+}
+
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions::default();
+    init().expect("Failed to initialize the application");
     eframe::run_native(
         "Solar System Simulator",
         options,
