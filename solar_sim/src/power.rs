@@ -83,28 +83,28 @@ fn parse_japanese_date(date_str: &str) -> Option<chrono::NaiveDate> {
     chrono::NaiveDate::parse_from_str(date_str, "%Y年%m月%d日").ok()
 }
 
-/// 電力消費量データを読み込む
+/// 消費電力量データを読み込む
 pub fn load_power_data(conn: &mut Connection, file: &str) -> anyhow::Result<()> {
     println!("Loading power data from file: {}", file);
 
     // データベースにテーブル作成
     conn.execute(
-        "CREATE TABLE IF NOT EXISTS '時別電力消費量' (
+        "CREATE TABLE IF NOT EXISTS '時別消費電力量' (
             timestamp TIMESTAMP PRIMARY KEY,
             match_key TEXT GENERATED ALWAYS AS (STRFTIME('%m-%d %H:00', timestamp)) STORED,
-            '電力消費量[kWh]' REAL
+            '消費電力量[kWh]' REAL
         )",
         [],
     )?;
 
-    // データベースに月別電力消費量ビューを作成
+    // データベースに月別消費電力量ビューを作成
     conn.execute(
-        "CREATE VIEW IF NOT EXISTS '月別電力消費量' AS
+        "CREATE VIEW IF NOT EXISTS '月別消費電力量' AS
         WITH monthly_totals AS (
             SELECT
                 strftime('%Y-%m', timestamp) AS month,
-                SUM('電力消費量[kWh]') AS total_power
-            FROM '時別電力消費量'
+                SUM('消費電力量[kWh]') AS total_power
+            FROM '時別消費電力量'
             GROUP BY month
         )
         SELECT 
@@ -137,7 +137,7 @@ pub fn load_power_data(conn: &mut Connection, file: &str) -> anyhow::Result<()> 
             Ok(record) => {
                 let date = parse_japanese_date(&record.timestamp).unwrap();
                 let sql =
-                    "INSERT INTO '時別電力消費量' (timestamp, '電力消費量[kWh]') VALUES (?1, ?2)";
+                    "INSERT INTO '時別消費電力量' (timestamp, '消費電力量[kWh]') VALUES (?1, ?2)";
                 tx.execute(
                     sql,
                     params![

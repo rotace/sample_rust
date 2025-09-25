@@ -6,7 +6,7 @@ pub fn load_parameter_data(conn: &mut Connection) -> anyhow::Result<()> {
 
     // データベースにテーブルを作成
     conn.execute(
-        "CREATE TABLE IF NOT EXISTS '時別太陽光発電量パラメータ' (
+        "CREATE TABLE IF NOT EXISTS '時別発電量パラメータ' (
             '設計係数' REAL NOT NULL,
             '太陽電池出力[m2]' REAL NOT NULL
         )",
@@ -18,7 +18,7 @@ pub fn load_parameter_data(conn: &mut Connection) -> anyhow::Result<()> {
     for &df in &design_factors {
         for &so in &solar_outputs {
             conn.execute(
-                "INSERT INTO '時別太陽光発電量パラメータ' ('設計係数', '太陽電池出力[m2]') VALUES (?1, ?2)",
+                "INSERT INTO '時別発電量パラメータ' ('設計係数', '太陽電池出力[m2]') VALUES (?1, ?2)",
                 params![df, so as f64],
             )?;
         }
@@ -51,7 +51,7 @@ pub fn load_parameter_data(conn: &mut Connection) -> anyhow::Result<()> {
             CASE WHEN t1.'太陽電池出力[m2]' == 0 THEN 0 ELSE t1.'太陽電池出力[m2]' * 250000 + 600000 END  AS '太陽電池初期費用[円]',
             CASE WHEN t2.'蓄電池容量[kWh]' == 0 THEN 0 ELSE t2.'蓄電池容量[kWh]' * 150000 + 1000000 END AS '蓄電池初期費用[円]'
         FROM
-            '時別太陽光発電量パラメータ' as t1
+            '時別発電量パラメータ' as t1
         CROSS JOIN
             '日別電力収支パラメータ' as t2
         )
